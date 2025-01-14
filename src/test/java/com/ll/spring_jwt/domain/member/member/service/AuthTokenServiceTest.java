@@ -7,6 +7,7 @@ import io.jsonwebtoken.security.Keys;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,10 +27,11 @@ public class AuthTokenServiceTest {
 	@Autowired
 	private AuthTokenService authTokenService;
 
-	// 테스트용 토큰 만료기간 : 1년
-	private int expireSeconds = 60 * 60 * 24 * 365;
-	// 테스트용 토큰 시크릿 키
-	private String secret = "abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmnopqrstuvwxyz1234567890";
+	@Value("${custom.jwt.secretKey}")
+	private String jwtSecretKey;
+	@Value("${custom.accessToken.expirationSeconds}")
+	private long accessTokenExpirationSeconds;
+
 
 	@Test
 	@DisplayName("authTokenService 서비스가 존재한다.")
@@ -42,9 +44,9 @@ public class AuthTokenServiceTest {
 	void t2() {
 
 		Date issuedAt = new Date();
-		Date expiration = new Date(issuedAt.getTime() + 1000L * expireSeconds);
+		Date expiration = new Date(issuedAt.getTime() + 1000L * accessTokenExpirationSeconds);
 
-		SecretKey secretKey = Keys.hmacShaKeyFor(secret.getBytes());
+		SecretKey secretKey = Keys.hmacShaKeyFor(jwtSecretKey.getBytes());
 
 		Map<String, Object> payload = Map.of(
 				"name", "Paul",
@@ -79,12 +81,12 @@ public class AuthTokenServiceTest {
 	void t3() {
 		Map<String, Object> payload = Map.of("name", "Paul", "age", 23);
 
-		String jwtStr = Ut.jwt.toString(secret, expireSeconds, payload); //토큰화
+		String jwtStr = Ut.jwt.toString(jwtSecretKey, accessTokenExpirationSeconds, payload); //토큰화
 
 		assertThat(jwtStr).isNotBlank();
-		assertThat(Ut.jwt.isValid(secret, jwtStr)).isTrue(); //유효한지 테스트 더 간단하게
+		assertThat(Ut.jwt.isValid(jwtSecretKey, jwtStr)).isTrue(); //유효한지 테스트 더 간단하게
 
-		Map<String, Object> parsedPayload = Ut.jwt.payload(secret, jwtStr); //payload도 유효한지 확인(똑같은지)
+		Map<String, Object> parsedPayload = Ut.jwt.payload(jwtSecretKey, jwtStr); //payload도 유효한지 확인(똑같은지)
 		assertThat(parsedPayload).containsAllEntriesOf(payload);
 	}
 
@@ -96,8 +98,8 @@ public class AuthTokenServiceTest {
 		String accessToken = authTokenService.genAccessToken(memberUser1);
 		assertThat(accessToken).isNotBlank();
 
-		assertThat(Ut.jwt.isValid(secret, accessToken)).isTrue(); //유효한지
-		Map<String, Object> parsedPayload = authTokenService.payload(secret, accessToken); //jwt에는 long을 담을 수 없어서
+		assertThat(Ut.jwt.isValid(jwtSecretKey, accessToken)).isTrue(); //유효한지
+		Map<String, Object> parsedPayload = authTokenService.payload(accessToken); //jwt에는 long을 담을 수 없어서
 		assertThat(parsedPayload)
 				.containsAllEntriesOf(
 						Map.of(
