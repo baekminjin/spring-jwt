@@ -95,6 +95,15 @@ public class AuthTokenServiceTest {
 
 		String accessToken = authTokenService.genAccessToken(memberUser1);
 		assertThat(accessToken).isNotBlank();
-		System.out.println("accessToken = " + accessToken);
+
+		assertThat(Ut.jwt.isValid(secret, accessToken)).isTrue(); //유효한지
+		Map<String, Object> parsedPayload = authTokenService.payload(secret, accessToken); //jwt에는 long을 담을 수 없어서
+		assertThat(parsedPayload)
+				.containsAllEntriesOf(
+						Map.of(
+								"id", memberUser1.getId(),
+								"username", memberUser1.getUsername()
+						)
+				);
 	}
 }
